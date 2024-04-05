@@ -1,0 +1,172 @@
+#!/usr/bin/env ruby
+
+require 'zip'
+require 'nokogiri'
+require 'pdf-reader'
+require 'mobi'
+require 'tmpdir'
+require 'shellwords'
+
+def with_value(k, v)
+  return if v.nil? || v == ''
+
+  puts "#{k}: #{v}"
+end
+
+def manual_unzip(filename)
+  xml = nil
+
+  Dir.mktmpdir do |d|
+    system("unzip #{Shellwords.escape(filename)} -d #{d} > /dev/null 2>&1")
+
+    Dir["#{d}/**/*.opf"].each do |x|
+      xml = File.open(x, 'r').read
+    end
+  end
+
+  xml
+end
+
+def epub_info(filename, ext)
+  puts "FILENAME: #{filename}"
+  puts "FORMAT: #{ext}"
+
+  begin
+    h = {}
+    xml = nil
+
+    Zip::File.open(filename) do |zip_file|
+      zip_file.each do |entry|
+        any_entries = true
+        next unless entry.name.end_with?('.opf')
+
+        # Read into memory
+        xml = entry.get_input_stream.read
+      end
+    end
+
+    xml = manual_unzip(filename) if xml.nil?
+
+    unless xml.nil?
+      doc = Nokogiri::XML(xml)
+      doc.search('*').each do |x|
+        next unless x.namespace.prefix == 'dc'
+
+        k = x.name
+        next if k == 'format'
+
+        h[k] = [] unless h.key?(k)
+
+        h[k] << x.content
+      end
+    end
+
+    h.keys.sort.each do |k|
+      h[k].sort.each do |v|
+        with_value(k.upcase, v)
+      end
+    end
+  rescue => e
+    puts "ERROR: #{e}"
+  end
+
+  puts
+end
+
+def pdf_info(filename)
+  puts "FILENAME: #{filename}"
+  puts "FORMAT: pdf"
+
+  begin
+    reader = PDF::Reader.new(filename)
+
+    h = {}
+
+    doc = Nokogiri::XML(reader.metadata)
+    doc.search('*').each do |x|
+      case x.namespace.prefix
+      when 'dc'
+        k = x.name
+        next if k == 'format'
+
+        h[k] = [] unless h.key?(k)
+        h[k] << x.content.strip
+      when 'pdf'
+        k = x.name
+        if %w[Author Subject Title].include?(k)
+          h[k] = [] unless h.key?(k)
+          h[k] << x.content.strip
+        end
+      when 'xap'
+        k = x.name
+        if %w[Author Description Title].include?(k)
+          h[k] = [] unless h.key?(k)
+          h[k] << x.content.strip
+        end
+      end
+    end
+
+    h.keys.sort.each do |k|
+      h[k].sort.each do |v|
+        puts "#{k.upcase}: #{v}"
+      end
+    end
+  rescue => e
+    puts "ERROR: #{e}"
+  end
+
+  puts
+end
+
+def mobi_info(filename)
+  puts "FILENAME: #{filename}"
+  puts "FORMAT: mobi"
+
+  begin
+    m = Mobi::Metadata.new(File.open(filename))
+
+    with_value("AUTHOR", m.author)
+    with_value("ASIN", m.asin)
+    with_value("CONTRIBUTOR", m.contributor)
+    with_value("DESCRIPTION", m.description)
+    with_value("IMPRINT", m.imprint)
+    with_value("ISBN", m.isbn)
+    with_value("PUBLISHED_AT", m.published_at)
+    with_value("PUBLISHER", m.publisher)
+    with_value("REVIEW", m.review)
+    with_value("RIGHTS", m.rights)
+    with_value("SOURCE", m.source)
+    with_value("SUBJECT", m.subject)
+    with_value("SUBJECT_CODE", m.subject_code)
+    with_value("TYPE", m.type)
+    with_value("VERSION", m.version)
+  rescue => e
+    puts "ERROR: #{e}"
+  end
+
+  puts
+end
+
+def unknown_info(filename, ext)
+  puts "FILENAME: #{filename}"
+  puts "FORMAT: unknown #{ext}"
+  puts
+end
+
+ARGV.each do |filename|
+  ext = filename.split('.').last
+  next if File.basename(filename) == ext
+
+  case ext
+  when 'epub', 'prc'
+    epub_info(filename, ext)
+  when 'pdf'
+    pdf_info(filename)
+  when 'mobi'
+    mobi_info(filename)
+  when 'zip', 'DS_Store', 'cbz'
+    # We just ignore these
+  else
+    unknown_info(filename, ext)
+  end
+end
