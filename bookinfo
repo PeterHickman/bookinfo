@@ -37,7 +37,6 @@ def epub_info(filename, ext)
 
     Zip::File.open(filename) do |zip_file|
       zip_file.each do |entry|
-        any_entries = true
         next unless entry.name.end_with?('.opf')
 
         # Read into memory
@@ -66,7 +65,7 @@ def epub_info(filename, ext)
         with_value(k.upcase, v)
       end
     end
-  rescue => e
+  rescue StandardError => e
     puts "ERROR: #{e}"
   end
 
@@ -75,7 +74,7 @@ end
 
 def pdf_info(filename)
   puts "FILENAME: #{filename}"
-  puts "FORMAT: pdf"
+  puts 'FORMAT: pdf'
 
   begin
     reader = PDF::Reader.new(filename)
@@ -111,7 +110,7 @@ def pdf_info(filename)
         puts "#{k.upcase}: #{v}"
       end
     end
-  rescue => e
+  rescue StandardError => e
     puts "ERROR: #{e}"
   end
 
@@ -120,27 +119,27 @@ end
 
 def mobi_info(filename)
   puts "FILENAME: #{filename}"
-  puts "FORMAT: mobi"
+  puts 'FORMAT: mobi'
 
   begin
     m = Mobi::Metadata.new(File.open(filename))
 
-    with_value("AUTHOR", m.author)
-    with_value("ASIN", m.asin)
-    with_value("CONTRIBUTOR", m.contributor)
-    with_value("DESCRIPTION", m.description)
-    with_value("IMPRINT", m.imprint)
-    with_value("ISBN", m.isbn)
-    with_value("PUBLISHED_AT", m.published_at)
-    with_value("PUBLISHER", m.publisher)
-    with_value("REVIEW", m.review)
-    with_value("RIGHTS", m.rights)
-    with_value("SOURCE", m.source)
-    with_value("SUBJECT", m.subject)
-    with_value("SUBJECT_CODE", m.subject_code)
-    with_value("TYPE", m.type)
-    with_value("VERSION", m.version)
-  rescue => e
+    with_value('AUTHOR', m.author)
+    with_value('ASIN', m.asin)
+    with_value('CONTRIBUTOR', m.contributor)
+    with_value('DESCRIPTION', m.description)
+    with_value('IMPRINT', m.imprint)
+    with_value('ISBN', m.isbn)
+    with_value('PUBLISHED_AT', m.published_at)
+    with_value('PUBLISHER', m.publisher)
+    with_value('REVIEW', m.review)
+    with_value('RIGHTS', m.rights)
+    with_value('SOURCE', m.source)
+    with_value('SUBJECT', m.subject)
+    with_value('SUBJECT_CODE', m.subject_code)
+    with_value('TYPE', m.type)
+    with_value('VERSION', m.version)
+  rescue StandardError => e
     puts "ERROR: #{e}"
   end
 
